@@ -1,3 +1,11 @@
 FlagEmbedding>=1.2.0
 torch>=2.0.0
 numpy>=1.24.0
+
+# API server (serve.py)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# High-performance inference (demo_vllm.py / serve_vllm.py)
+# Requires NVIDIA GPU; install separately:
+# pip install vllm>=0.6.0
