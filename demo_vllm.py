@@ -1,9 +1,9 @@
 """
 BGE High-Performance Deployment with vLLM
 ==========================================
-适合 GPU 生产环境的高吞吐量 BGE 推理。
-vLLM 通过 PagedAttention + Continuous Batching 相比原生 Transformers
-在高并发下可达 5-10x 以上的吞吐量提升。
+High-throughput BGE inference for GPU production environments.
+vLLM uses PagedAttention + Continuous Batching to achieve 5-10x
+higher throughput than native Transformers under high concurrency.
 
 Requirements:
     pip install vllm>=0.6.0
@@ -25,12 +25,12 @@ from __future__ import annotations
 import time
 import numpy as np
 
-# ─── 配置 ─────────────────────────────────────────────────────────────────────
-# vLLM 推荐用 bge-base 或 bge-large（BERT-based，完整支持）
-# bge-small 也支持，但收益更小
+# ─── Config ───────────────────────────────────────────────────────────────────
+# vLLM works best with bge-base or bge-large (BERT-based, full support)
+# bge-small also works but with smaller throughput gains
 EMBED_MODEL  = "BAAI/bge-base-en-v1.5"
-RERANK_MODEL = "BAAI/bge-reranker-v2-m3"   # XLM-RoBERTa based，vLLM 支持 score
-DTYPE        = "float16"                     # GPU: float16 / float32；CPU: float32
+RERANK_MODEL = "BAAI/bge-reranker-v2-m3"   # XLM-RoBERTa based, vLLM score API
+DTYPE        = "float16"                     # GPU: float16 / float32; CPU: float32
 QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
 
@@ -57,7 +57,7 @@ def demo_vllm_embeddings() -> None:
     embeddings = np.array([o.outputs.embedding for o in outputs])
     print(f"\nEmbedding shape: {embeddings.shape}")
 
-    # 归一化（vLLM 的 embed 输出不保证 L2 归一化，手动处理）
+    # Normalize manually — vLLM embed output is not guaranteed to be L2-normalized
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
     embeddings_normalized = embeddings / (norms + 1e-9)
 
@@ -99,12 +99,12 @@ def demo_vllm_semantic_search() -> None:
         "What tools are used for vector similarity search?",
     ]
 
-    # vLLM 批量编码（corpus + queries 一次调用，更高效）
+    # Encode corpus + queries in a single call for efficiency
     all_texts = corpus + [QUERY_INSTRUCTION + q for q in queries]
     all_outputs = llm.embed(all_texts)
     all_vecs = np.array([o.outputs.embedding for o in all_outputs])
 
-    # L2 归一化
+    # L2 normalize
     all_vecs /= np.linalg.norm(all_vecs, axis=1, keepdims=True) + 1e-9
 
     corpus_emb = all_vecs[:len(corpus)]
@@ -124,7 +124,7 @@ def demo_vllm_reranker() -> None:
     _sep("Demo 3 (vLLM): Reranker (Cross-encoder Score API)")
     from vllm import LLM
 
-    # bge-reranker-v2-m3 使用 vLLM 的 score/classify 任务
+    # bge-reranker-v2-m3 uses vLLM's score task for cross-encoder scoring
     llm = LLM(model=RERANK_MODEL, task="score", dtype=DTYPE)
 
     query = "What are the advantages of using BGE for information retrieval?"
@@ -137,7 +137,7 @@ def demo_vllm_reranker() -> None:
         "BGE-M3 unifies dense, sparse, and multi-vector retrieval in one model.",
     ]
 
-    # LLM.score(text_1_list, text_2_list) — 批量交叉编码打分
+    # LLM.score(text_1_list, text_2_list) — batch cross-encoder scoring
     outputs = llm.score([query] * len(candidates), candidates)
     scores  = [o.outputs.score for o in outputs]
 
@@ -149,7 +149,7 @@ def demo_vllm_reranker() -> None:
         print(f"  #{rank}  [{score:8.4f}]{marker}  {passage}")
 
 
-# ─── Demo 4: 吞吐量对比 Benchmark ─────────────────────────────────────────────
+# ─── Demo 4: Throughput Benchmark ────────────────────────────────────────────
 def demo_throughput_benchmark(n_texts: int = 200) -> None:
     _sep(f"Demo 4: Throughput Benchmark (n={n_texts})")
 
@@ -187,7 +187,7 @@ def demo_throughput_benchmark(n_texts: int = 200) -> None:
         print(f"  FlagEmbedding: skipped ({e})")
 
 
-# ─── 入口 ─────────────────────────────────────────────────────────────────────
+# ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("BGE + vLLM High-Performance Demo")
     print(f"  Embedding model : {EMBED_MODEL}")

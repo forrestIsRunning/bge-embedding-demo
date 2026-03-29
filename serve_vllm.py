@@ -1,18 +1,18 @@
 """
 BGE High-Performance Server — vLLM Backend
 ==========================================
-生产级 BGE 推理服务，基于 vLLM 实现高吞吐量。
-相比 serve.py (FlagEmbedding)，在 GPU 上可提供 5-10x 以上吞吐量。
+Production-grade BGE inference service powered by vLLM for high throughput.
+Compared to serve.py (FlagEmbedding), delivers 5-10x higher throughput on GPU.
 
 Architecture:
   FastAPI (async) → vLLM LLMEngine (Continuous Batching + PagedAttention)
 
 Usage:
-    # Option A: 本文件（FastAPI + vLLM Python API）
+    # Option A: this file (FastAPI + vLLM Python API)
     pip install vllm>=0.6.0 fastapi uvicorn
     python serve_vllm.py
 
-    # Option B: vLLM 内置 OpenAI 兼容服务（最简单，推荐生产）
+    # Option B: vLLM built-in OpenAI-compatible server (simplest, recommended for production)
     python -m vllm.entrypoints.openai.api_server \\
         --model BAAI/bge-base-en-v1.5 \\
         --task embed \\
@@ -20,10 +20,10 @@ Usage:
         --port 8080
 
 Endpoints:
-    GET  /health           — 健康检查
-    POST /embed            — 编码文本（query / passage 模式）
-    POST /rerank           — 精排 (query, passage) 对
-    GET  /v1/models        — 列出已加载模型
+    GET  /health           — health check
+    POST /embed            — encode text (query / passage mode)
+    POST /rerank           — rerank (query, passage) pairs
+    GET  /v1/models        — list loaded models
 
 OpenAI-compatible client example:
     from openai import OpenAI
@@ -43,26 +43,26 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# ─── 配置 ─────────────────────────────────────────────────────────────────────
+# ─── Config ───────────────────────────────────────────────────────────────────
 EMBED_MODEL  = os.getenv("EMBED_MODEL",  "BAAI/bge-base-en-v1.5")
 RERANK_MODEL = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
-DTYPE        = os.getenv("DTYPE",        "float16")      # CPU 请改 "float32"
+DTYPE        = os.getenv("DTYPE",        "float16")      # Use "float32" for CPU
 HOST         = os.getenv("HOST",         "0.0.0.0")
 PORT         = int(os.getenv("PORT",     "8080"))
 
-# vLLM 张量并行度（多卡时设为 GPU 数量）
+# vLLM tensor parallel size (set to number of GPUs for multi-GPU)
 TENSOR_PARALLEL_SIZE = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
 
 QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
-# ─── 全局模型实例 ──────────────────────────────────────────────────────────────
+# ─── Global model instances ───────────────────────────────────────────────────
 _embed_llm:  object = None   # vllm.LLM
 _rerank_llm: object = None   # vllm.LLM
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用启动时预热模型"""
+    """Warm up models at application startup."""
     global _embed_llm, _rerank_llm
     from vllm import LLM
 
@@ -99,7 +99,7 @@ app = FastAPI(
 class EmbedRequest(BaseModel):
     texts: list[str]
     mode: Literal["query", "passage"] = "passage"
-    normalize: bool = True   # L2 归一化（余弦相似度计算必须开启）
+    normalize: bool = True   # L2 normalize (required for cosine similarity)
 
 
 class RerankRequest(BaseModel):
@@ -184,6 +184,6 @@ def rerank(req: RerankRequest):
     }
 
 
-# ─── 启动 ─────────────────────────────────────────────────────────────────────
+# ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT, loop="uvloop")

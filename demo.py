@@ -1,29 +1,29 @@
 """
 FlagEmbedding (BGE) Demo
 ========================
-6 个核心 Demo，覆盖从基础到进阶的检索管线：
+6 demos covering the full retrieval pipeline from basics to advanced:
 
-  Demo 1. Basic Embeddings      — 编码 + 余弦相似度矩阵
-  Demo 2. Semantic Search       — Top-K 语义检索（双编码器）
-  Demo 3. Reranker              — 精排候选结果（交叉编码器）
-  Demo 4. BGE-M3 Multi-repr.   — Dense / Sparse / ColBERT 三模态
-  Demo 5. Hybrid Search         — Dense + Sparse RRF 融合检索
-  Demo 6. Cross-language        — 中文 Query → 英文语料跨语言检索
+  Demo 1. Basic Embeddings      — encode sentences + cosine similarity matrix
+  Demo 2. Semantic Search       — Top-K retrieval with bi-encoder
+  Demo 3. Reranker              — re-rank candidates with cross-encoder
+  Demo 4. BGE-M3 Multi-repr.   — dense / sparse / ColBERT multi-representation
+  Demo 5. Hybrid Search         — dense + sparse RRF fusion
+  Demo 6. Cross-language        — Chinese query → English corpus cross-lingual retrieval
 
-模型说明：
-  bge-small-en-v1.5  轻量英文模型（Demo 1-3，本地快速测试）
-  bge-reranker-base  英文精排模型
-  bge-m3             多语言多模态模型（Demo 4-6，支持 100+ 语言）
+Models:
+  bge-small-en-v1.5  lightweight English model (Demo 1-3, fast local testing)
+  bge-reranker-base  English reranker
+  bge-m3             multilingual multi-repr model (Demo 4-6, 100+ languages)
 """
 
 import numpy as np
 from FlagEmbedding import FlagModel, FlagReranker, BGEM3FlagModel
 
-# ─── 配置 ─────────────────────────────────────────────────────────────────────
+# ─── Config ───────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL   = "BAAI/bge-small-en-v1.5"
 RERANKER_MODEL    = "BAAI/bge-reranker-base"
 M3_MODEL          = "BAAI/bge-m3"
-USE_FP16          = False   # GPU 可设 True，Mac CPU 保持 False
+USE_FP16          = False   # Set True on GPU, keep False on CPU
 QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
 
@@ -31,7 +31,7 @@ def _sep(title: str) -> None:
     print(f"\n{'='*60}\n{title}\n{'='*60}")
 
 
-# ─── Demo 1: 基础嵌入 + 余弦相似度 ───────────────────────────────────────────
+# ─── Demo 1: Basic Embeddings + Cosine Similarity ────────────────────────────
 def demo_basic_embeddings(model: FlagModel) -> None:
     _sep("Demo 1: Basic Embeddings & Cosine Similarity")
 
@@ -58,7 +58,7 @@ def demo_basic_embeddings(model: FlagModel) -> None:
         print(f"  S{i}: {s}")
 
 
-# ─── Demo 2: 语义检索 ─────────────────────────────────────────────────────────
+# ─── Demo 2: Semantic Search ─────────────────────────────────────────────────
 def demo_semantic_search(model: FlagModel) -> None:
     _sep("Demo 2: Semantic Search (Bi-encoder Top-K Retrieval)")
 
@@ -93,7 +93,7 @@ def demo_semantic_search(model: FlagModel) -> None:
             print(f"  #{rank}  [{scores[idx]:.4f}]  {corpus[idx]}")
 
 
-# ─── Demo 3: 重排序 ───────────────────────────────────────────────────────────
+# ─── Demo 3: Reranker ────────────────────────────────────────────────────────
 def demo_reranker() -> None:
     _sep("Demo 3: Reranker (Cross-encoder Precision Ranking)")
 
@@ -119,7 +119,7 @@ def demo_reranker() -> None:
         print(f"  #{rank}  [{score:8.4f}]{marker}  {passage}")
 
 
-# ─── Demo 4: BGE-M3 三模态检索 ───────────────────────────────────────────────
+# ─── Demo 4: BGE-M3 Multi-representation Retrieval ───────────────────────────
 def demo_bge_m3(m3: BGEM3FlagModel) -> None:
     _sep("Demo 4: BGE-M3 — Dense / Sparse / Multi-vector (ColBERT)")
 
@@ -144,7 +144,7 @@ def demo_bge_m3(m3: BGEM3FlagModel) -> None:
     print(f"\nDense vector shape  : {dense.shape}")
     print(f"ColBERT shapes      : {[v.shape for v in colbert]}")
 
-    # 展示稀疏权重 top-5 token
+    # Show top-5 tokens per sentence by sparse weight
     tokenizer = m3.tokenizer
     print("\nSparse top-5 tokens per sentence:")
     for i, weights in enumerate(sparse):
@@ -152,7 +152,7 @@ def demo_bge_m3(m3: BGEM3FlagModel) -> None:
         tokens = [(tokenizer.decode([int(tid)]).strip(), round(float(w), 4)) for tid, w in top5]
         print(f"  S{i}: {tokens}")
 
-    # Dense 相似度矩阵
+    # Dense cosine similarity matrix
     sim = dense @ dense.T
     labels = [f"S{i}" for i in range(len(sentences))]
     print("\nDense cosine similarity:")
@@ -161,7 +161,7 @@ def demo_bge_m3(m3: BGEM3FlagModel) -> None:
         print(f"  {labels[i]:>4}  " + "  ".join(f"{v:5.3f}" for v in row))
 
 
-# ─── Demo 5: Hybrid Search (RRF 融合) ────────────────────────────────────────
+# ─── Demo 5: Hybrid Search (RRF Fusion) ──────────────────────────────────────
 def demo_hybrid_search(m3: BGEM3FlagModel) -> None:
     _sep("Demo 5: Hybrid Search (Dense + Sparse RRF Fusion)")
 
@@ -207,7 +207,7 @@ def demo_hybrid_search(m3: BGEM3FlagModel) -> None:
         print(f"  #{rank}  {dense_scores[idx]:7.4f}  {sparse_scores[idx]:7.4f}  {hybrid[idx]:7.4f}  {corpus[idx]}")
 
 
-# ─── Demo 6: 跨语言检索 ───────────────────────────────────────────────────────
+# ─── Demo 6: Cross-language Retrieval ────────────────────────────────────────
 def demo_cross_language(m3: BGEM3FlagModel) -> None:
     _sep("Demo 6: Cross-language Retrieval (Chinese Query → English Corpus)")
 
@@ -241,14 +241,14 @@ def demo_cross_language(m3: BGEM3FlagModel) -> None:
         print()
 
 
-# ─── 入口 ─────────────────────────────────────────────────────────────────────
+# ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("FlagEmbedding (BGE) Demo")
     print(f"  Embedding : {EMBEDDING_MODEL}")
     print(f"  Reranker  : {RERANKER_MODEL}")
     print(f"  BGE-M3    : {M3_MODEL}")
 
-    # 共享模型实例，避免重复加载
+    # Shared model instances — avoids loading models twice
     flag_model = FlagModel(
         EMBEDDING_MODEL,
         query_instruction_for_retrieval=QUERY_INSTRUCTION,

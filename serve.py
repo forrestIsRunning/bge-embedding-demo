@@ -1,18 +1,18 @@
 """
 BGE Embedding Server (FlagEmbedding)
 =====================================
-轻量级 FastAPI 服务，适合本地开发 / 小规模部署。
-高并发生产场景推荐使用 serve_vllm.py。
+Lightweight FastAPI service for local development and small-scale deployment.
+For high-concurrency production, use serve_vllm.py instead.
 
 Usage:
     pip install fastapi uvicorn
     python serve.py
 
 Endpoints:
-    GET  /health           — 健康检查
-    POST /embed            — 标准 BGE 编码（bi-encoder）
-    POST /embed/m3         — BGE-M3 多模态编码（dense + sparse + colbert）
-    POST /rerank           — 精排（cross-encoder）
+    GET  /health           — health check
+    POST /embed            — standard BGE encoding (bi-encoder)
+    POST /embed/m3         — BGE-M3 multi-repr encoding (dense + sparse + colbert)
+    POST /rerank           — precision reranking (cross-encoder)
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pydantic import BaseModel
 
 from FlagEmbedding import FlagModel, FlagReranker, BGEM3FlagModel
 
-# ─── 配置 ─────────────────────────────────────────────────────────────────────
+# ─── Config ───────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
 RERANKER_MODEL  = os.getenv("RERANKER_MODEL",  "BAAI/bge-reranker-base")
 M3_MODEL        = os.getenv("M3_MODEL",        "BAAI/bge-m3")
@@ -38,7 +38,7 @@ QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
 app = FastAPI(title="BGE Embedding API", version="1.0.0")
 
-# ─── 懒加载模型（首次请求时初始化）────────────────────────────────────────────
+# ─── Lazy model loading (initialized on first request) ────────────────────────
 _flag_model: FlagModel | None = None
 _reranker:   FlagReranker | None = None
 _m3_model:   BGEM3FlagModel | None = None
@@ -69,7 +69,7 @@ def get_m3() -> BGEM3FlagModel:
     return _m3_model
 
 
-# ─── 请求/响应 Schema ─────────────────────────────────────────────────────────
+# ─── Request / Response Schema ───────────────────────────────────────────────
 class EmbedRequest(BaseModel):
     texts: list[str]
     mode: Literal["query", "passage"] = "passage"
@@ -146,6 +146,6 @@ def rerank(req: RerankRequest):
     return {"query": req.query, "results": results}
 
 
-# ─── 启动 ─────────────────────────────────────────────────────────────────────
+# ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT)
